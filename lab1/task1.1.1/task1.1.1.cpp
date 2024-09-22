@@ -242,11 +242,8 @@ Matrix::~Matrix()
     delete[] this->matrix_data_;
 }
 
-#define MAIN_TASK 1
-
 int main()
 {
-#if MAIN_TASK
     std::ifstream in("input.txt");
 
     int N, k;
@@ -278,7 +275,4 @@ int main()
 #endif
 
     return 0;
-#else
-
-#endif
 }
