@@ -20,7 +20,6 @@ public:
     Matrix operator~() const;
     Matrix operator()(const size_t row, const size_t column) const;
 
-    // Доп задание
     int *operator[](const size_t index) const;
 
     class Vector
@@ -181,7 +180,7 @@ Matrix Matrix::operator()(const size_t row, const size_t column) const
     return minor_matrix;
 }
 
-// Доп задание
+
 int *Matrix::operator[](const size_t index) const
 {
     if (index < 0 || index > this->size_)
@@ -262,7 +261,7 @@ int main()
     out << (A + B * ~C + K) * ~D;
     out.close();
 
-#if 1
+#if 0
     for (size_t i = 0; i < 2; i++)
         std::cout << C(0)[i] << '\n';
     std::cout << std::endl;
