@@ -1,10 +1,10 @@
 CXXC = g++
 CXXFLAGS = -Wall -O2
-EXECUTABLE = ./task1.1.1
-OBJECTS = task1.1.1.cpp
+EXECUTABLE = ./task2.1.1
+OBJECTS = task2.1.1.cpp
 OUTFILE = output.txt
 
-.PHONY: all, build, clean, run
+.PHONY: all, build, clean, run, op
 
 $(EXECUTABLE):
 	$(CXXC) $(CXXFLAGS) $(OBJECTS) -o $(EXECUTABLE)
@@ -18,6 +18,5 @@ clean:
 
 run:
 	$(EXECUTABLE)
-
 op:
 	cat output.txt
