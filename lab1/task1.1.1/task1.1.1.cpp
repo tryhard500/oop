@@ -1,6 +1,11 @@
+/*
+НГУ ММФ МКН 3 семестр
+Лаборатораня работа по программированию (ООП)
+Задание 1, Задача "1.1.1 (усложнённый) Матрицы" + Доп. задание
+*/
+
 #include <iostream>
 #include <fstream>
-
 
 class Matrix
 {
@@ -181,7 +186,6 @@ Matrix Matrix::operator()(const size_t row, const size_t column) const
     return minor_matrix;
 }
 
-
 int *Matrix::operator[](const size_t index) const
 {
     if (index < 0 || index > this->size_)
@@ -261,6 +265,8 @@ int main()
     std::ofstream out("output.txt");
     out << (A + B * ~C + K) * ~D;
     out.close();
+
+    std::cout << "123" << std::endl;
 
 #if 0
     for (size_t i = 0; i < 2; i++)

@@ -1,3 +1,9 @@
+/*
+НГУ ММФ МКН 3 семестр
+Лаборатораня работа по программированию (ООП)
+Задание 2, Задача "2.1.1 (усложнённый) Символьное дифференцирование + Доп. задание"
+*/
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -8,7 +14,7 @@
 class Expression
 {
 private:
-    std::map<std::string, int> parse_eval(const std::string &meaning)
+    static std::map<std::string, int> parse_eval(const std::string &meaning)
     {
         std::map<std::string, int> result;
         size_t i = 0;
@@ -708,6 +714,7 @@ int main()
             new Number(2),
             new Variable("x")));
     e->print(std::cout);
+    
     std::cout << std::endl;
     Expression *de = e->derivative("x");
     de->print(std::cout);

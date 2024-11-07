@@ -1,0 +1,7 @@
+I S
+5
+A 783 Ivanov
+A 999 Petrova
+A 986 Sidorov
+R 986
+A 111 Kuznecov
