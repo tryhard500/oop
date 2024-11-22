@@ -266,8 +266,6 @@ int main()
     out << (A + B * ~C + K) * ~D;
     out.close();
 
-    std::cout << "123" << std::endl;
-
 #if 0
     for (size_t i = 0; i < 2; i++)
         std::cout << C(0)[i] << '\n';
