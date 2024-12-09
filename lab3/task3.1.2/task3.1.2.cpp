@@ -18,20 +18,20 @@ template<typename K, typename V> class HashMap {
         HashMapNode(K key, V value) : key(key), value(value), isOccupied(true) {}
     };
 
-    HashMapNode *table;
+    HashMapNode* table;
     int size;
     int capacity;
     float loadFactor;
 
 
-    int hash(const K &key) {
+    int hash(const K& key) {
         return std::hash<K>()(key) % capacity;
     }
 
     void rehash() {
         int oldCapacity = capacity;
         capacity *= 2;
-        HashMapNode *oldTable = table;
+        HashMapNode* oldTable = table;
         table = new HashMapNode[capacity]();
         size = 0;
         for (int i = 0; i < oldCapacity; i++) {
@@ -43,13 +43,14 @@ template<typename K, typename V> class HashMap {
 
 public:
     HashMap(float loadFactor = 0.70, int capacity = 4) :
-        loadFactor(loadFactor), capacity(capacity), size(0), table(new HashMapNode[capacity]()) {}
-
-    ~HashMap() {
-        delete [] table;
+        loadFactor(loadFactor), capacity(capacity), size(0), table(new HashMapNode[capacity]()) {
     }
 
-    V get(const K &key) {
+    ~HashMap() {
+        delete[] table;
+    }
+
+    V get(const K& key) {
         int index = hash(key);
         while (table[index].isOccupied) {
             if (table[index].key == key)
@@ -59,7 +60,7 @@ public:
         throw std::out_of_range("Key not found");
     }
 
-    void add(const K &key, const V &value) {
+    void add(const K& key, const V& value) {
         if (static_cast<float>(size) / capacity >= loadFactor) rehash();
         int index = hash(key);
         while (table[index].isOccupied) {
@@ -73,7 +74,7 @@ public:
         size++;
     }
 
-    void remove(const K &key) {
+    void remove(const K& key) {
         int index = hash(key);
         while (table[index].isOccupied) {
             if (table[index].key == key) {
@@ -86,11 +87,11 @@ public:
     }
 
     class Iterator {
-        HashMapNode *current;
-        HashMapNode *end;
+        HashMapNode* current;
+        HashMapNode* end;
 
     public:
-        Iterator(HashMapNode *current, HashMapNode *end) : current(current), end(end) {
+        Iterator(HashMapNode* current, HashMapNode* end) : current(current), end(end) {
             while (current <= end && !current->isOccupied) ++current;
         }
 
@@ -98,13 +99,13 @@ public:
             return std::make_pair(current->key, current->value);
         }
 
-        Iterator &operator++() {
+        Iterator& operator++() {
             ++current;
             while (current < end && !current->isOccupied) ++current;
             return *this;
         }
 
-        bool operator!=(const Iterator &other) const { return current != other.current; }
+        bool operator!=(const Iterator& other) const { return current != other.current; }
     };
 
     Iterator begin() const {
@@ -129,7 +130,7 @@ public:
 };
 
 template<typename K, typename V> std::pair<int, int> makeHashMap(
-    std::ifstream &file = dynamic_cast<std::ifstream &>(std::cin)) {
+    std::ifstream& file = dynamic_cast<std::ifstream&>(std::cin)) {
     HashMap<K, V> map;
     int N;
     file >> N;
@@ -152,30 +153,30 @@ template<typename K, typename V> std::pair<int, int> makeHashMap(
     return std::make_pair(map.getSize(), map.getUniqueValues());
 }
 
-std::pair<int, int> executeProgram(char keyType, char valueType, std::ifstream &file) {
+std::pair<int, int> executeProgram(char keyType, char valueType, std::ifstream& file) {
     switch (keyType) {
-        case 'I':
-            switch (valueType) {
-                case 'I': return makeHashMap<int, int>(file);
-                case 'D': return makeHashMap<int, double>(file);
-                case 'S': return makeHashMap<int, std::string>(file);
-                default: throw std::out_of_range("Wrong value type");
-            }
-        case 'D':
-            switch (valueType) {
-                case 'I': return makeHashMap<double, int>(file);
-                case 'D': return makeHashMap<double, double>(file);
-                case 'S': return makeHashMap<double, std::string>(file);
-                default: throw std::out_of_range("Wrong value type");
-            }
-        case 'S':
-            switch (valueType) {
-                case 'I': return makeHashMap<std::string, int>(file);
-                case 'D': return makeHashMap<std::string, double>(file);
-                case 'S': return makeHashMap<std::string, std::string>(file);
-                default: throw std::out_of_range("Wrong value type");
-            }
-        default: throw std::out_of_range("Wrong key type");
+    case 'I':
+        switch (valueType) {
+        case 'I': return makeHashMap<int, int>(file);
+        case 'D': return makeHashMap<int, double>(file);
+        case 'S': return makeHashMap<int, std::string>(file);
+        default: throw std::out_of_range("Wrong value type");
+        }
+    case 'D':
+        switch (valueType) {
+        case 'I': return makeHashMap<double, int>(file);
+        case 'D': return makeHashMap<double, double>(file);
+        case 'S': return makeHashMap<double, std::string>(file);
+        default: throw std::out_of_range("Wrong value type");
+        }
+    case 'S':
+        switch (valueType) {
+        case 'I': return makeHashMap<std::string, int>(file);
+        case 'D': return makeHashMap<std::string, double>(file);
+        case 'S': return makeHashMap<std::string, std::string>(file);
+        default: throw std::out_of_range("Wrong value type");
+        }
+    default: throw std::out_of_range("Wrong key type");
     }
 }
 
