@@ -1,118 +1,199 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <set>
-#include <queue>
-#include <regex>
-#include <thread>
-#include <mutex>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <mutex>
+#include <queue>
+#include <regex>
+#include <set>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
 
-namespace fs = std::filesystem;
+class WebCrawler {
+    std::mutex queue_mutex;
+    std::mutex status_mutex;
 
-// Мьютексы для синхронизации потоков
-std::mutex queueMutex, setMutex, coutMutex;
+    std::queue<std::string> links_queue;
+    std::set<std::string> visited_links;
+    std::vector<std::thread> threads;
 
-// Очередь для страниц, которые нужно обработать
-std::queue<std::string> urlQueue;
+    std::string root_link;
+    size_t thread_count;
+    size_t links_count = 0;
 
-// Множество для отслеживания уже посещенных страниц
-std::set<std::string> visitedUrls;
-
-// Функция обработки страницы
-void processPage(const std::string &url) {
-    // Открытие локального файла (убираем префикс "file://")
-    std::string localPath = url.substr(7);
-    std::replace(localPath.begin(), localPath.end(), '/', '\\');
-    std::ifstream inputFile(localPath);
-    if (!inputFile.is_open()) {
-        std::lock_guard<std::mutex> lock(coutMutex);
-        std::cerr << "Error opening file:  " << url << std::endl;
-        return;
+    static bool save_file_content(const std::string& link, std::string& content) {
+        const std::string path = "test_data/" + link.substr(link.find_last_of('/') + 1);
+        std::ifstream file(path);
+        if (!file.is_open()) {
+            std::cerr << "Failed to open file " << path << std::endl;
+            return false;
+        }
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        content = buffer.str();
+        return true;
     }
 
-    // Считываем содержимое файла в строку
-    std::string content((std::istreambuf_iterator<char>(inputFile)),
-                        std::istreambuf_iterator<char>());
+    std::vector<std::string> extract_links(const std::string& content) {
+        std::vector<std::string> links;
+        std::regex link_regex("<a href=\"(file://[^\"]+)\">");
+        std::smatch match;
 
-    // Регулярное выражение для поиска ссылок формата <a href="file://...">
-    const std::regex linkRegex(R"(<a href="(file://[^]+)>)");
-    std::sregex_iterator iter(content.begin(), content.end(), linkRegex);
-    std::sregex_iterator end;
+        auto it = content.cbegin();
+        while (std::regex_search(it, content.cend(), match, link_regex)) {
+            links.push_back(match[1].str());
+            it = match.suffix().first;
+        }
 
-    // Обрабатываем все найденные ссылки
-    while (iter != end) {
-        std::string foundUrl = (*iter)[1].str(); // Извлекаем ссылку
-        ++iter; {
-            // Проверяем, была ли ссылка уже посещена
-            std::lock_guard<std::mutex> lock(setMutex);
-            if (visitedUrls.find(foundUrl) == visitedUrls.end()) {
-                // Если ссылка новая, добавляем ее в множество и очередь
-                visitedUrls.insert(foundUrl);
-                std::lock_guard<std::mutex> queueLock(queueMutex);
-                urlQueue.push(foundUrl);
+        return links;
+    }
+
+    static void save_page(const std::string& link, const std::string& content) {
+        try {
+            const std::string downloads_path = "downloads";
+            std::filesystem::create_directories(downloads_path);
+
+            std::string filename = "downloaded_" + link.substr(link.find_last_of('/') + 1);
+            if (filename.empty()) {
+                std::cerr << "Invalid link format: " << link << std::endl;
+                return;
+            }
+
+            std::string full_path = downloads_path + "/" + filename;
+            std::ofstream output_file(full_path);
+            if (!output_file.is_open()) {
+                std::cerr << "Failed to create file: " << full_path << std::endl;
+                return;
+            }
+            output_file << content;
+            output_file.close();
+
+            //std::cout << "File saved: " << full_path << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Error saving file: " << e.what() << std::endl;
+        }
+    }
+
+    void crawler() {
+        while (true) {
+            std::string current_link;
+            {
+                std::lock_guard<std::mutex> queue_lock(queue_mutex);
+                if (links_queue.empty()) { return; }
+                current_link = links_queue.front();
+                links_queue.pop();
+            }
+            {
+                std::lock_guard<std::mutex> status_lock(status_mutex);
+                if (visited_links.find(current_link) != visited_links.end()) { continue; }
+                visited_links.insert(current_link);
+                ++links_count;
+            }
+            if (std::string content; save_file_content(current_link, content)) {
+                save_page(current_link, content);
+                auto links = extract_links(content);
+                {
+                    std::lock_guard<std::mutex> queue_lock(queue_mutex);
+                    for (const auto& link : links) {
+                        if (visited_links.find(link) == visited_links.end()) {
+                            links_queue.push(link);
+                        }
+                    }
+                }
             }
         }
     }
+public:
+    WebCrawler(const std::string& root_link, const size_t thread_count = 1) :
+        root_link(root_link), thread_count(thread_count) {
+    }
 
-    // Копируем файл в локальную директорию "downloaded"
-    std::string outputPath = "downloaded/" + fs::path(url.substr(7)).filename().string();
-    fs::create_directories("downloaded"); // Создаем директорию, если она отсутствует
-    fs::copy(url.substr(7), outputPath, fs::copy_options::overwrite_existing);
-}
-
-// Функция, выполняемая потоком
-void worker() {
-    while (true) {
-        std::string currentUrl; {
-            // Извлечение следующей задачи из очереди
-            std::lock_guard<std::mutex> lock(queueMutex);
-            if (urlQueue.empty()) break; // Если очередь пуста, поток завершает работу
-            currentUrl = urlQueue.front();
-            urlQueue.pop(); // Удаляем ссылку из очереди
+    std::tuple<size_t, std::chrono::duration<double>> run() {
+        const auto start = std::chrono::high_resolution_clock::now(); {
+            std::lock_guard<std::mutex> queue_lock(queue_mutex);
+            links_queue.push(root_link);
         }
 
-        // Обработка страницы
-        processPage(currentUrl);
+        for (size_t i = 0; i < thread_count; ++i) {
+            threads.emplace_back(&WebCrawler::crawler, this);
+        }
+
+        for (auto& thread : threads) {
+            thread.join();
+        }
+        const auto end = std::chrono::high_resolution_clock::now();
+        const auto elapsed_time = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+
+        return std::make_tuple(links_count, elapsed_time);
+    }
+};
+
+void data_output(const std::vector<std::tuple<size_t, double, size_t>>& test_results, std::ofstream& file) {
+    constexpr int width1 = 15;
+    constexpr int width2 = 20;
+    constexpr int width3 = 15;
+
+    file << std::left
+        << std::setw(width1) << "Thread count"
+        << std::setw(width2) << "Crawling time (s)"
+        << std::setw(width3) << "Links found"
+        << std::endl;
+    file << std::string(width1 + width2 + width3, '-') << std::endl;
+
+    for (const auto& [thread_count, elapsed_time, links_count] : test_results) {
+        file << std::left
+            << std::setw(width1) << thread_count
+            << std::setw(width2) << std::fixed << std::setprecision(2) << elapsed_time
+            << std::setw(width3) << links_count
+            << std::endl;
     }
 }
 
+#if 1
 int main() {
-    // Читаем аргументы: стартовый URL и количество потоков
-    std::string startUrl = "file://0.html";
-    int threadCount = 4;
+    std::ifstream input_file("input.txt");
+    std::ofstream output_file("output.txt");
 
-    // Записываем стартовую страницу в множество посещенных и очередь
-    {
-        std::lock_guard<std::mutex> lock(setMutex);
-        visitedUrls.insert(startUrl); // Добавляем в множество посещенных
-    } {
-        std::lock_guard<std::mutex> lock(queueMutex);
-        urlQueue.push(startUrl); // Добавляем в очередь
+    std::string root_link;
+    size_t max_thread_count;
+
+    input_file >> root_link >> max_thread_count;
+
+    std::vector<std::tuple<size_t, double, size_t>> test_results;
+
+    for (size_t thread_count = 1; thread_count <= max_thread_count; ++thread_count) {
+        WebCrawler crawler(root_link, thread_count);
+
+        auto [links_count, elapsed_time] = crawler.run();
+
+        std::cout << "Thread count: " << thread_count << std::endl;
+        std::cout << "Crawling completed in " << elapsed_time.count() << " seconds.\n";
+        std::cout << "Total links found: " << links_count << "\n\n";
+
+        test_results.emplace_back(thread_count, elapsed_time.count(), links_count);
     }
 
-    // Замеряем время работы программы
-    auto startTime = std::chrono::high_resolution_clock::now();
+    data_output(test_results, output_file);
 
-    // Создаем и запускаем потоки
-    std::vector<std::thread> threads;
-    for (int i = 0; i < threadCount; ++i) {
-        threads.emplace_back(worker); // Запускаем функцию worker в каждом потоке
-    }
-
-    // Дожидаемся завершения всех потоков
-    for (auto &thread: threads) {
-        thread.join();
-    }
-
-    // Завершаем замер времени работы программы
-    auto endTime = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = endTime - startTime;
-
-    // Выводим результаты работы
-    std::cout << "Number of pages visited: " << visitedUrls.size() << std::endl;
-    std::cout << "Total working time: " << elapsed.count() << " seconds" << std::endl;
-
+    input_file.close();
+    output_file.close();
     return 0;
 }
+#endif
+
+#if 0
+int main() {
+    const std::string root_link = "file://0.html";
+    constexpr size_t thread_count = 4;
+
+    WebCrawler crawler(root_link, thread_count);
+    auto [links_count, elapsed_time] = crawler.run();
+
+    std::cout << "Thread count: " << thread_count << std::endl;
+    std::cout << "Crawling completed in " << elapsed_time.count() << " seconds.\n";
+    std::cout << "Total links found: " << links_count << "\n";
+}
+#endif

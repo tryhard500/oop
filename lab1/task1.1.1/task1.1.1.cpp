@@ -36,7 +36,7 @@ public:
         Vector(const Matrix* matrix, size_t index);
 
         int operator[](const size_t index) const;
-        int& operator[](const size_t);
+        int& operator[](const size_t index);
     };
 
     Vector operator()(const size_t index) const;
@@ -157,6 +157,7 @@ Matrix Matrix::operator()(const size_t row, const size_t column) const {
                 minor_matrix.matrix_data_[i][j] = this->matrix_data_[i + 1][j + 1];
         }
     }
+    //pizdets conechni nikita chti ty naebashil???
     return minor_matrix;
 }
 
@@ -209,36 +210,47 @@ Matrix::~Matrix() {
     delete[] this->matrix_data_;
 }
 
+// int main() {
+//     std::ifstream in("input.txt");
+
+//     int N, k;
+//     in >> N >> k;
+
+//     int* diag = new int[N];
+//     for (int i = 0; i < N; ++i)
+//         diag[i] = k;
+//     Matrix A(N), B(N), C(N), D(N), K(N, diag);
+//     in >> A >> B >> C >> D;
+//     delete[] diag;
+//     diag = nullptr;
+//     in.close();
+
+//     std::ofstream out("output.txt");
+//     out << (A + B * ~C + K) * ~D;
+//     out.close();
+
+//     for (size_t i = 0; i < 2; i++)
+//         std::cout << C(0)[i] << '\n';
+//     std::cout << std::endl;
+
+//     C(0)[0] = 1000;
+
+//     for (size_t i = 0; i < 2; i++)
+//         std::cout << C(0)[i] << '\n';
+//     std::cout << std::endl;
+
+//     return 0;
+// }
+
 int main() {
-    std::ifstream in("input.txt");
+    const int n = 3;
+    int a[n] = { 1,2,3 };
+    Matrix M(n, a);
+    std::cout << M;
+    for (size_t i = 0; i < n; i++) {
+        std::cout << M(2)[i];
+    }
 
-    int N, k;
-    in >> N >> k;
-
-    int* diag = new int[N];
-    for (int i = 0; i < N; ++i)
-        diag[i] = k;
-    Matrix A(N), B(N), C(N), D(N), K(N, diag);
-    in >> A >> B >> C >> D;
-    delete[] diag;
-    diag = nullptr;
-    in.close();
-
-    std::ofstream out("output.txt");
-    out << (A + B * ~C + K) * ~D;
-    out.close();
-
-#if 0
-    for (size_t i = 0; i < 2; i++)
-        std::cout << C(0)[i] << '\n';
-    std::cout << std::endl;
-
-    C(0)[0] = 1000;
-
-    for (size_t i = 0; i < 2; i++)
-        std::cout << C(0)[i] << '\n';
-    std::cout << std::endl;
-#endif
 
     return 0;
 }
