@@ -45,6 +45,7 @@ class WebCrawler {
         auto it = content.cbegin();
         while (std::regex_search(it, content.cend(), match, link_regex)) {
             links.push_back(match[1].str());
+            //++links_count;
             it = match.suffix().first;
         }
 
